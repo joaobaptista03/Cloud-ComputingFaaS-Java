@@ -11,9 +11,9 @@ public class Example {
             byte[] output = JobFunction.execute(job);
 
             // utilizar o resultado ou reportar o erro
-            System.err.println("success, returned "+output.length+" bytes");
+            System.err.println("success, returned " + output.length + " bytes");
         } catch (JobFunctionException e) {
-            System.err.println("job failed: code="+e.getCode()+" message="+e.getMessage());
+            System.err.println("job failed: code=" + e.getCode() + " message="+ e.getMessage());
         }
     }
 }
