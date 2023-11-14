@@ -1,14 +1,26 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+import sd23.*;
 
 public class CentralServer {
     private ServerSocket serverSocket;
     private ExecutorService executorService;
     private BlockingQueue<Runnable> taskQueue;
     private AtomicInteger taskIdCounter = new AtomicInteger(0);
+
+    private Map<String, User> userDatabase = new HashMap<>();
+    private Map<String, DataOutputStream> loggedInUsers = new HashMap<>();
+
+    private static final Lock inputLock = new ReentrantLock();
+    private static final Lock outputLock = new ReentrantLock();
 
     public CentralServer(int port) throws IOException {
         serverSocket = new ServerSocket(port);
@@ -44,42 +56,97 @@ public class CentralServer {
                 DataInputStream in = new DataInputStream(clientSocket.getInputStream());
                 DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream())
             ) {
-                // Implemente a lógica de autenticação aqui
 
-                // Leia a tarefa do cliente
+                String requestType = in.readUTF();
+                if ("REGISTER".equals(requestType)) while (!handleRegister(in, out));
+                while (!handleLogin(in, out));
+
                 byte[] task = readTaskFromClient(in);
-
-                // Execute a tarefa e obtenha o resultado
                 byte[] result = executeTask(task);
-
-                // Envie o resultado de volta para o cliente
                 sendResultToClient(result, out);
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
 
-        // Implemente métodos para ler tarefas, executar tarefas e enviar resultados.
+        private boolean handleRegister(DataInputStream in, DataOutputStream out) throws IOException {
+            String username = in.readUTF();
+            String password = in.readUTF();
+
+            if (!userDatabase.containsKey(username)) {
+                userDatabase.put(username, new User(username, password));
+                loggedInUsers.put(username, out);
+                out.writeUTF("REGISTER_SUCCESS");
+                System.out.println("User registered: " + username);
+                return true;
+            } else {
+                out.writeUTF("REGISTER_FAILURE");
+            }
+            return false;
+        }
+
+        private boolean handleLogin(DataInputStream in, DataOutputStream out) throws IOException {
+            String username = in.readUTF();
+            String password = in.readUTF();
+
+            User authenticatedUser = this.authenticateUser(username, password);
+            if (authenticatedUser != null) {
+                loggedInUsers.put(username, out);
+                out.writeUTF("LOGIN_SUCCESS");
+                System.out.println("User logged in: " + username);
+                return true;
+            } else {
+                out.writeUTF("LOGIN_FAILURE");
+                System.out.println("Server response: " + "LOGIN_FAILURE");
+            }
+
+            return false;
+        }
+
+        public User authenticateUser(String username, String password) {
+            User user = userDatabase.get(username);
+            if (user != null && user.getPassword().equals(password)) {
+                return user;
+            }
+            return null;
+        }
 
         private byte[] readTaskFromClient(DataInputStream in) throws IOException {
-            int taskLength = in.readInt(); // Leitura do tamanho da tarefa
-            byte[] task = new byte[taskLength];
-            in.readFully(task); // Leitura dos dados da tarefa
-            return task;
+            inputLock.lock();
+            try {
+                int length = in.readInt();
+                byte[] result = new byte[length];
+                in.readFully(result);
+    
+                return result;
+            } finally {
+                inputLock.unlock();
+            }
         }
     
-        // Método para executar a tarefa (simplificado)
         private byte[] executeTask(byte[] task) {
-            // Implemente a lógica de execução da tarefa, como o uso de JobFunction.execute(task)
-            // ou qualquer lógica específica do seu projeto.
-            // Aqui, estamos apenas simulando uma execução com a mesma tarefa.
-            return task;
+            byte[] result;
+
+            try {
+                result = JobFunction.execute(task);
+                return result;
+            } catch (JobFunctionException e) {
+                e.printStackTrace();
+            }
+
+            return null;
         }
     
-        // Método para enviar o resultado de volta ao cliente
         private void sendResultToClient(byte[] result, DataOutputStream out) throws IOException {
-            out.writeInt(result.length); // Envio do tamanho do resultado
-            out.write(result); // Envio dos dados do resultado
+            outputLock.lock();
+            try {
+                out.writeInt(result.length);
+                out.write(result);
+                out.flush();
+            } finally {
+                outputLock.unlock();
+            }
         }
     }
 
