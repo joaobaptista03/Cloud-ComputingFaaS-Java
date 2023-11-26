@@ -4,6 +4,8 @@ import java.util.Scanner;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+
+//////////////////////// To Do: Opção para consultar o estado da memoria e fila de espera através do terminal
 public class Client {
     private static final String SERVER_ADDRESS = "localhost";
     private static final int SERVER_PORT = 8080;
@@ -168,4 +170,67 @@ public class Client {
     private static void processResult(byte[] result) throws IOException {
         System.out.println(result);
     }
+/* 
+    private static void queryServiceStatus(DataInputStream in, DataOutputStream out) throws IOException {
+        outputLock.lock();
+        try {
+            out.writeUTF("QUERY_STATUS");
+            out.flush();
+    
+            int availableMemory = in.readInt();
+            int pendingTasks = in.readInt();
+    
+            System.out.println("Service Status:");
+            System.out.println("Available Memory: " + availableMemory + " bytes");
+            System.out.println("Pending Tasks: " + pendingTasks);
+        } finally {
+            outputLock.unlock();
+        }
+    }
+*/
+
 }
+
+
+/*
+public static void main(String[] args) {
+    try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
+        DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+        DataInputStream in = new DataInputStream(socket.getInputStream())) {
+
+        auth(in, out);
+
+        boolean exit = false;
+        while (!exit) {
+            System.out.println("1. Execute Task");
+            System.out.println("2. Query Service Status");
+            System.out.println("3. Exit");
+            System.out.print("Choose an option: ");
+            
+            int option = scanner.nextInt();
+            scanner.nextLine(); // consume newline
+
+            switch (option) {
+                case 1:
+                    byte[] task = createTask();
+                    sendTaskToServer(task, out);
+                    byte[] result = readResultFromServer(in);
+                    processResult(result);
+                    break;
+                case 2:
+                    queryServiceStatus(in, out);
+                    break;
+                case 3:
+                    exit = true;
+                    break;
+                default:
+                    System.out.println("Invalid option. Please try again.");
+            }
+        }
+
+        scanner.close();
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
+ */
