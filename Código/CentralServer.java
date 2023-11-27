@@ -4,7 +4,6 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -14,25 +13,20 @@ public class CentralServer {
     private ServerSocket serverSocket;
     private ExecutorService executorService;
     private BlockingQueue<Runnable> taskQueue;
-    private AtomicInteger taskIdCounter = new AtomicInteger(0);
 
     private Map<String, User> userDatabase = new HashMap<>();
     private Map<String, DataOutputStream> loggedInUsers = new HashMap<>();
 
     private static final Lock inputLock = new ReentrantLock();
     private static final Lock outputLock = new ReentrantLock();
-/* 
-    private static final int MAX_MEMORY = 1024 * 1024 * 1024; // 1 GB em bytes
 
-    private int availableMemory = MAX_MEMORY;
+    private int availableMemory = 1024 * 1024 * 1024;
     private int pendingTasks = 0;
-*/
 
     public CentralServer(int port) throws IOException {
         serverSocket = new ServerSocket(port);
         taskQueue = new LinkedBlockingQueue<>();
-        executorService = new ThreadPoolExecutor(2, 10, 30, TimeUnit.SECONDS, taskQueue);
-//        startStatusQueryListener();
+        executorService = new ThreadPoolExecutor(50, 51, 30, TimeUnit.SECONDS, taskQueue);
     }
 
     public void start() {
@@ -47,68 +41,44 @@ public class CentralServer {
             }
         }
     }
-/* 
-    private void startStatusQueryListener() {
-        new Thread(() -> {
-            while (true) {
-                try {
-                    TimeUnit.SECONDS.sleep(10); // Ajuste o intervalo conforme necessário
-                    queryServiceStatusToAllClients();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
-    }
-    
-    
-    private void queryServiceStatusToAllClients() {
-        outputLock.lock();
-        try {
-            for (DataOutputStream out : loggedInUsers.values()) {
-                out.writeUTF("QUERY_STATUS");
-                out.flush();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            outputLock.unlock();
-        }
-    }
-*/
 
     private class ClientHandler implements Runnable {
         private Socket clientSocket;
-        private int clientId;
+        private String clientName;
 
         public ClientHandler(Socket socket) {
             this.clientSocket = socket;
-            this.clientId = taskIdCounter.incrementAndGet();
         }
 
         @Override
         public void run() {
             try (
-                DataInputStream in = new DataInputStream(clientSocket.getInputStream());
-                DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream())
+                    DataInputStream in = new DataInputStream(clientSocket.getInputStream());
+                    DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream())
             ) {
 
-                String requestType = in.readUTF();
-                if ("REGISTER".equals(requestType)) while (!handleRegister(in, out));
+                String authType = in.readUTF();
+                if ("REGISTER".equals(authType)) while (!handleRegister(in, out));
                 while (!handleLogin(in, out));
-
-                byte[] task = readTaskFromClient(in);
-                byte[] result = executeTask(task);
-                sendResultToClient(result, out);
-/* 
-                outputLock.lock();
-                try {
-                    availableMemory += task.length; // Supondo que a tarefa consome memória
-                    pendingTasks--;
-                } finally {
-                    outputLock.unlock();
+                
+                while(true) {
+                    String requestType = in.readUTF();
+                    switch (requestType) {
+                        case "EXECUTE_TASK":
+                            handleExecuteTask(in, out);
+                            break;
+                        case "QUERY_STATUS":
+                            handleQueryStatus(out);
+                            break;
+                        case "LOGOUT":
+                            loggedInUsers.remove(clientName);
+                            System.out.println("User " + clientName + " logged out.");
+                            break;
+                        default:
+                            System.out.println("Invalid request type: " + requestType);
+                    }
                 }
-*/
+                
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -137,6 +107,7 @@ public class CentralServer {
             User authenticatedUser = this.authenticateUser(username, password);
             if (authenticatedUser != null) {
                 loggedInUsers.put(username, out);
+                this.clientName = username;
                 out.writeUTF("LOGIN_SUCCESS");
                 System.out.println("User logged in: " + username);
                 return true;
@@ -168,11 +139,27 @@ public class CentralServer {
                 inputLock.unlock();
             }
         }
+
+        private void handleExecuteTask(DataInputStream in, DataOutputStream out) throws IOException {
+            byte[] task = readTaskFromClient(in);
+            byte[] result = executeTask(task);
+            sendResultToClient(result, out);
+
+            outputLock.lock();
+            try {
+                availableMemory += task.length;
+                pendingTasks--;
+            } finally {
+                outputLock.unlock();
+            }
+        }
     
         private byte[] executeTask(byte[] task) {
             byte[] result;
 
             try {
+                pendingTasks++;
+                availableMemory -= task.length;
                 result = JobFunction.execute(task);
                 return result;
             } catch (JobFunctionException e) {
@@ -192,7 +179,6 @@ public class CentralServer {
                 outputLock.unlock();
             }
         }
-/* 
         private void handleQueryStatus(DataOutputStream out) throws IOException {
             outputLock.lock();
             try {
@@ -203,7 +189,6 @@ public class CentralServer {
                 outputLock.unlock();
             }
         }
-*/
     }
 
     public static void main(String[] args) {
