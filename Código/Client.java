@@ -32,6 +32,12 @@ public class Client {
                     case 1:
                         byte[] task = createTask();
                         sendTaskToServer(task, out);
+
+                        if (!readMemoryAvailability(in)) {
+                            System.out.println("Not enough memory available to execute task.");
+                            break;
+                        }
+                        
                         byte[] result = readResultFromServer(in);
                         processResult(result);
                         break;
@@ -51,6 +57,15 @@ public class Client {
             scanner.close();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+    
+    private static boolean readMemoryAvailability(DataInputStream in) throws IOException {
+        inputLock.lock();
+        try {
+            return in.readBoolean();
+        } finally {
+            inputLock.unlock();
         }
     }
 

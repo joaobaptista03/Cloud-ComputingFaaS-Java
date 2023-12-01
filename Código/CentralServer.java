@@ -11,22 +11,17 @@ import sd23.*;
 
 public class CentralServer {
     private ServerSocket serverSocket;
-    private ExecutorService executorService;
-    private BlockingQueue<Runnable> taskQueue;
+    private BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<>();
+    private ExecutorService executorService = new ThreadPoolExecutor(50, 51, 30, TimeUnit.SECONDS, taskQueue);
 
     private Map<String, User> userDatabase = new HashMap<>();
     private Map<String, DataOutputStream> loggedInUsers = new HashMap<>();
-
-    private static final Lock inputLock = new ReentrantLock();
-    private static final Lock outputLock = new ReentrantLock();
 
     private int availableMemory = 1024 * 1024 * 1024;
     private int pendingTasks = 0;
 
     public CentralServer(int port) throws IOException {
         serverSocket = new ServerSocket(port);
-        taskQueue = new LinkedBlockingQueue<>();
-        executorService = new ThreadPoolExecutor(50, 51, 30, TimeUnit.SECONDS, taskQueue);
     }
 
     public void start() {
@@ -45,6 +40,8 @@ public class CentralServer {
     private class ClientHandler implements Runnable {
         private Socket clientSocket;
         private String clientName;
+        private Lock inputLock = new ReentrantLock();
+        private Lock outputLock = new ReentrantLock();
 
         public ClientHandler(Socket socket) {
             this.clientSocket = socket;
@@ -78,7 +75,7 @@ public class CentralServer {
                             System.out.println("Invalid request type: " + requestType);
                     }
                 }
-                
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -142,13 +139,22 @@ public class CentralServer {
 
         private void handleExecuteTask(DataInputStream in, DataOutputStream out) throws IOException {
             byte[] task = readTaskFromClient(in);
-            byte[] result = executeTask(task);
-            sendResultToClient(result, out);
-
+    
             outputLock.lock();
             try {
-                availableMemory += task.length;
-                pendingTasks--;
+                if (task.length > availableMemory) {
+                    out.writeBoolean(false);
+                    out.flush();
+                }
+                else {
+                    out.writeBoolean(true);
+                    out.flush();
+
+                    byte[] result = executeTask(task);
+                    sendResultToClient(result, out);
+                    availableMemory += task.length;
+                    pendingTasks--;
+                }
             } finally {
                 outputLock.unlock();
             }
@@ -170,14 +176,9 @@ public class CentralServer {
         }
     
         private void sendResultToClient(byte[] result, DataOutputStream out) throws IOException {
-            outputLock.lock();
-            try {
-                out.writeInt(result.length);
-                out.write(result);
-                out.flush();
-            } finally {
-                outputLock.unlock();
-            }
+            out.writeInt(result.length);
+            out.write(result);
+            out.flush();
         }
         private void handleQueryStatus(DataOutputStream out) throws IOException {
             outputLock.lock();
