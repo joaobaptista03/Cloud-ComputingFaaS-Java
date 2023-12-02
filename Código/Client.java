@@ -20,33 +20,19 @@ public class Client {
 
             boolean exit = false;
             while (!exit) {
-                System.out.println("1. Execute Task");
-                System.out.println("2. Query Service Status");
-                System.out.println("3. Exit");
-                System.out.print("Choose an option: ");
-                
+                printMenu();
                 int option = scanner.nextInt();
                 scanner.nextLine();
 
                 switch (option) {
                     case 1:
-                        byte[] task = createTask();
-                        sendTaskToServer(task, out);
-
-                        if (!readMemoryAvailability(in)) {
-                            System.out.println("Not enough memory available to execute task.");
-                            break;
-                        }
-                        
-                        byte[] result = readResultFromServer(in);
-                        processResult(result);
+                        executeTask(in, out);
                         break;
                     case 2:
                         queryServiceStatus(in, out);
                         break;
                     case 3:
-                        out.writeUTF("LOGOUT");
-                        out.flush();
+                        logout(out);
                         exit = true;
                         break;
                     default:
@@ -60,6 +46,26 @@ public class Client {
         }
     }
     
+    private static void printMenu() {
+        System.out.println("1. Execute Task");
+        System.out.println("2. Query Service Status");
+        System.out.println("3. Exit");
+        System.out.print("Choose an option: ");
+    }
+
+    private static void executeTask(DataInputStream in, DataOutputStream out) throws IOException {
+        byte[] task = createTask();
+        sendTaskToServer(task, out);
+
+        if (!readMemoryAvailability(in)) {
+            System.out.println("Not enough memory available to execute task.");
+            return;
+        }
+        
+        byte[] result = readResultFromServer(in);
+        processResult(result);
+    }
+
     private static boolean readMemoryAvailability(DataInputStream in) throws IOException {
         inputLock.lock();
         try {
@@ -172,7 +178,7 @@ public class Client {
     }
     
     private static byte[] createTask() {
-        System.out.println("Insere o número de bytes: ");
+        System.out.println("Enter the number of bytes: ");
         int length = scanner.nextInt();
 
         byte[] task = new byte[length];
@@ -228,4 +234,13 @@ public class Client {
         }
     }
 
+    private static void logout(DataOutputStream out) throws IOException {
+        outputLock.lock();
+        try {
+            out.writeUTF("LOGOUT");
+            out.flush();
+        } finally {
+            outputLock.unlock();
+        }
+    }
 }

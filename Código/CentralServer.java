@@ -50,15 +50,16 @@ public class CentralServer {
         @Override
         public void run() {
             try (
-                    DataInputStream in = new DataInputStream(clientSocket.getInputStream());
-                    DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream())
+                DataInputStream in = new DataInputStream(clientSocket.getInputStream());
+                DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream())
             ) {
-
                 String authType = in.readUTF();
-                if ("REGISTER".equals(authType)) while (!handleRegister(in, out));
+                if ("REGISTER".equals(authType)) {
+                    while (!handleRegister(in, out));
+                }
                 while (!handleLogin(in, out));
-                
-                while(true) {
+
+                while (true) {
                     String requestType = in.readUTF();
                     switch (requestType) {
                         case "EXECUTE_TASK":
@@ -130,7 +131,7 @@ public class CentralServer {
                 int length = in.readInt();
                 byte[] result = new byte[length];
                 in.readFully(result);
-    
+
                 return result;
             } finally {
                 inputLock.unlock();
@@ -139,14 +140,13 @@ public class CentralServer {
 
         private void handleExecuteTask(DataInputStream in, DataOutputStream out) throws IOException {
             byte[] task = readTaskFromClient(in);
-    
+
             outputLock.lock();
             try {
                 if (task.length > availableMemory) {
                     out.writeBoolean(false);
                     out.flush();
-                }
-                else {
+                } else {
                     out.writeBoolean(true);
                     out.flush();
 
@@ -159,7 +159,7 @@ public class CentralServer {
                 outputLock.unlock();
             }
         }
-    
+
         private byte[] executeTask(byte[] task) {
             byte[] result;
 
@@ -174,12 +174,13 @@ public class CentralServer {
 
             return null;
         }
-    
+
         private void sendResultToClient(byte[] result, DataOutputStream out) throws IOException {
             out.writeInt(result.length);
             out.write(result);
             out.flush();
         }
+
         private void handleQueryStatus(DataOutputStream out) throws IOException {
             outputLock.lock();
             try {
