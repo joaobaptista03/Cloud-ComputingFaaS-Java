@@ -11,8 +11,6 @@ import sd23.*;
 
 public class CentralServer {
     private ServerSocket serverSocket;
-    private BlockingQueue<Runnable> taskQueue = new LinkedBlockingQueue<>();
-    private ExecutorService executorService = new ThreadPoolExecutor(50, 51, 30, TimeUnit.SECONDS, taskQueue);
 
     private Map<String, User> userDatabase = new HashMap<>();
     private Map<String, DataOutputStream> loggedInUsers = new HashMap<>();
@@ -30,7 +28,8 @@ public class CentralServer {
             try {
                 Socket clientSocket = serverSocket.accept();
                 ClientHandler clientHandler = new ClientHandler(clientSocket);
-                executorService.execute(clientHandler);
+                Thread clientThread = new Thread(clientHandler);
+                clientThread.start();
             } catch (IOException e) {
                 e.printStackTrace();
             }
