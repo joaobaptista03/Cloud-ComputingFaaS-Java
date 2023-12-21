@@ -5,8 +5,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -19,7 +17,7 @@ import sd23.JobFunctionException;
  */
 public class CentralServer {
     private ServerSocket serverSocket;
-    private ExecutorService executorService;
+    private SimpleThreadExecutor executorService;
 
     private Map<String, User> userDatabase = new HashMap<>();
     private Map<String, DataOutputStream> loggedInUsers = new HashMap<>();
@@ -29,7 +27,7 @@ public class CentralServer {
 
     public CentralServer(int port) throws IOException {
         serverSocket = new ServerSocket(port);
-        executorService = Executors.newFixedThreadPool(10);
+        executorService = new SimpleThreadExecutor(10);
     }
 
     /**
@@ -41,7 +39,7 @@ public class CentralServer {
         while (true) {
             try {
                 Socket clientSocket = serverSocket.accept();
-                executorService.submit(new ClientHandler(clientSocket));
+                executorService.submitTask(new ClientHandler(clientSocket));
                 
             } catch (IOException e) {
                 e.printStackTrace();
