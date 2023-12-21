@@ -5,7 +5,7 @@ import java.net.Socket;
 import java.util.Scanner;
 
 public class ClientAPI {
-    public static Scanner scanner = new Scanner(System.in);
+    private static Scanner scanner = new Scanner(System.in);
     
     public static void main(String[] args) {
         Client c = new Client();
