@@ -10,10 +10,17 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Client implements ClientInterface {
-    private final Lock inputLock = new ReentrantLock();
-    private final Lock outputLock = new ReentrantLock();
-    public final List<String> taskFiles = getFilesInDirectory("TestTaskFiles/Tasks/");
+    private Lock inputLock = new ReentrantLock();
+    private Lock outputLock = new ReentrantLock();
+    public List<String> taskFiles = getFilesInDirectory("TestTaskFiles/Tasks/");
     private String name;
+    private DataInputStream in;
+    private DataOutputStream out;
+
+    public Client(DataInputStream in, DataOutputStream out) {
+        this.in = in;
+        this.out = out;
+    }
 
     private List<String> getFilesInDirectory(String directoryPath) {
         List<String> fileList = new ArrayList<>();
@@ -29,21 +36,21 @@ public class Client implements ClientInterface {
         return fileList;
     }
 
-    public void executeTask(String taskFile, DataInputStream in, DataOutputStream out) throws IOException {
+    public void executeTask(String taskFile) throws IOException {
         byte[] task = createTask(taskFile);
-        sendTaskToServer(task, in, out);
+        sendTaskToServer(task);
 
-        if (!readMemoryAvailability(in)) {
+        if (!readMemoryAvailability()) {
             System.out.println("Not enough memory available to execute task.");
             return;
         }
         
-        byte[] result = readResultFromServer(in);
+        byte[] result = readResultFromServer();
 
         processResult(taskFile, result);
     }
 
-    private boolean readMemoryAvailability(DataInputStream in) throws IOException {
+    private boolean readMemoryAvailability() throws IOException {
         inputLock.lock();
         try {
             return in.readBoolean();
@@ -52,7 +59,7 @@ public class Client implements ClientInterface {
         }
     }
 
-    public boolean authenticate(String username, String password, DataInputStream in, DataOutputStream out) throws IOException {
+    public boolean authenticate(String username, String password) throws IOException {
         String result = "";
 
         outputLock.lock();
@@ -78,7 +85,7 @@ public class Client implements ClientInterface {
         return false;
     }
 
-    public boolean register(String username, String password, DataInputStream in, DataOutputStream out) throws IOException {
+    public boolean register(String username, String password) throws IOException {
         outputLock.lock();
         inputLock.lock();
         try {
@@ -107,7 +114,7 @@ public class Client implements ClientInterface {
         return task;
     }
 
-    private boolean sendTaskToServer(byte[] task, DataInputStream in, DataOutputStream out) throws IOException {
+    private boolean sendTaskToServer(byte[] task) throws IOException {
         outputLock.lock();
         inputLock.lock();
         try {
@@ -130,7 +137,7 @@ public class Client implements ClientInterface {
         }
     }
 
-    private byte[] readResultFromServer(DataInputStream in) throws IOException {
+    private byte[] readResultFromServer() throws IOException {
         inputLock.lock();
         try {
             int length = in.readInt();
@@ -156,7 +163,7 @@ public class Client implements ClientInterface {
         System.err.println("Task result saved to " + file.getAbsolutePath());
     }
 
-    public ServiceStatus queryServiceStatus(DataInputStream in, DataOutputStream out) throws IOException {
+    public ServiceStatus queryServiceStatus() throws IOException {
         outputLock.lock();
         try {
             out.writeUTF("QUERY_STATUS");
@@ -176,7 +183,7 @@ public class Client implements ClientInterface {
         }
     }
 
-    public void logout(DataOutputStream out) throws IOException {
+    public void logout() throws IOException {
         outputLock.lock();
         try {
             out.writeUTF("LOGOUT");

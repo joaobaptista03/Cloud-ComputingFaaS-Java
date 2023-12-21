@@ -8,11 +8,12 @@ public class ClientAPI {
     private static Scanner scanner = new Scanner(System.in);
     
     public static void main(String[] args) {
-        Client c = new Client();
 
         try (Socket socket = new Socket("localhost", 8080);
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             DataInputStream in = new DataInputStream(socket.getInputStream())) {
+
+            Client c = new Client(in, out);
 
             String responseString;
             do {
@@ -49,17 +50,17 @@ public class ClientAPI {
                             }
                             taskFile = scanner.nextLine();
                         }
-                        c.executeTask(taskFile, in, out);
+                        c.executeTask(taskFile);
                         break;
                     case 2:
-                        ServiceStatus ss = c.queryServiceStatus(in, out);
+                        ServiceStatus ss = c.queryServiceStatus();
 
                         System.out.println("Service status:");
                         System.out.println("Available memory: " + ss.availableMemory);
                         System.out.println("Pending tasks: " + ss.pendingTasks);
                         break;
                     case 3:
-                        c.logout(out);
+                        c.logout();
                         exit = true;
                         break;
                     default:
@@ -80,7 +81,7 @@ public class ClientAPI {
             String username = scanner.nextLine();
             System.out.println("Type your password:");
             String password = scanner.nextLine();
-            loginSuccess = c.authenticate(username, password, in, out);
+            loginSuccess = c.authenticate(username, password);
             if (!loginSuccess) System.out.println("Login failed, try again.");
         }
         System.out.println("Login success!");
@@ -94,7 +95,7 @@ public class ClientAPI {
             String username = scanner.nextLine();
             System.out.println("Type the password you want to register:");
             String password = scanner.nextLine();
-            registerSuccess = c.register(username, password, in, out);
+            registerSuccess = c.register(username, password);
             if (!registerSuccess) System.out.println("Register failed (Username in use), try again.");
         }
 
