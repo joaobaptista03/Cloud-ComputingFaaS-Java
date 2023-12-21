@@ -192,6 +192,8 @@ public class Client implements ClientInterface {
         try {
             out.writeUTF("LOGOUT");
             out.flush();
+            in.close();
+            out.close();
             socket.close();
             
         } finally {
