@@ -10,9 +10,9 @@ public class ClientAPI {
 
         String responseString;
         do {
-            System.out.println("Digite \"s\" se já tiver conta (fazer Login) ou \"n\" se não tiver (Fazer registo)");
+            System.out.println("Type \"y\" if you already have an account (Login) or \"n\" otherwise (Register)");
             responseString = scanner.nextLine();
-        } while (!responseString.equalsIgnoreCase("s") && !responseString.equalsIgnoreCase("n"));
+        } while (!responseString.equalsIgnoreCase("y") && !responseString.equalsIgnoreCase("n"));
 
         if (responseString.equalsIgnoreCase("n")) {
             register(c);
