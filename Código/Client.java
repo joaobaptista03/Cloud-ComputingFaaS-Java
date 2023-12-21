@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,50 +12,13 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Client {
-    private static final String SERVER_ADDRESS = "localhost";
-    private static final int SERVER_PORT = 8080;
-    private static final Lock inputLock = new ReentrantLock();
-    private static final Lock outputLock = new ReentrantLock();
-    private static final Scanner scanner = new Scanner(System.in);
-    private static final List<String> taskFiles = getFilesInDirectory("TestTaskFiles/Tasks/");
-    private static String name;
+    private final Lock inputLock = new ReentrantLock();
+    private final Lock outputLock = new ReentrantLock();
+    public final Scanner scanner = new Scanner(System.in);
+    private final List<String> taskFiles = getFilesInDirectory("TestTaskFiles/Tasks/");
+    private String name;
 
-    public static void main(String[] args) {
-        try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
-            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-            DataInputStream in = new DataInputStream(socket.getInputStream())) {
-
-            auth(in, out);
-
-            boolean exit = false;
-            while (!exit) {
-                printMenu();
-                int option = scanner.nextInt();
-                scanner.nextLine();
-
-                switch (option) {
-                    case 1:
-                        executeTask(in, out);
-                        break;
-                    case 2:
-                        queryServiceStatus(in, out);
-                        break;
-                    case 3:
-                        logout(out);
-                        exit = true;
-                        break;
-                    default:
-                        System.out.println("Invalid option. Please try again.");
-                }
-            }
-
-            scanner.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static List<String> getFilesInDirectory(String directoryPath) {
+    public List<String> getFilesInDirectory(String directoryPath) {
         List<String> fileList = new ArrayList<>();
         File directory = new File(directoryPath);
         File[] files = directory.listFiles();
@@ -70,14 +32,14 @@ public class Client {
         return fileList;
     }
     
-    private static void printMenu() {
+    public void printMenu() {
         System.out.println("1. Execute Task");
         System.out.println("2. Query Service Status");
         System.out.println("3. Exit");
         System.out.print("Choose an option: ");
     }
 
-    private static void executeTask(DataInputStream in, DataOutputStream out) throws IOException {
+    public void executeTask(DataInputStream in, DataOutputStream out) throws IOException {
         String taskFile = "";
 
         while (!taskFiles.contains(taskFile)) {
@@ -103,7 +65,7 @@ public class Client {
         processResult(taskFile, intValue, taskAndResult[1]);
     }
 
-    private static boolean readMemoryAvailability(DataInputStream in) throws IOException {
+    public boolean readMemoryAvailability(DataInputStream in) throws IOException {
         inputLock.lock();
         try {
             return in.readBoolean();
@@ -112,7 +74,7 @@ public class Client {
         }
     }
 
-    private static void auth(DataInputStream in, DataOutputStream out) throws IOException {
+    public void auth(DataInputStream in, DataOutputStream out) throws IOException {
         if (!hasAccount()) {
             boolean registerSuccess = false;
 
@@ -149,7 +111,7 @@ public class Client {
         System.out.println("Login success!");
     }
 
-    private static boolean hasAccount() {
+    public boolean hasAccount() {
         String responseString;
     
         do {
@@ -160,7 +122,7 @@ public class Client {
         return responseString.equalsIgnoreCase("s");
     }
 
-    private static boolean authenticate(DataInputStream in, DataOutputStream out) throws IOException {
+    public boolean authenticate(DataInputStream in, DataOutputStream out) throws IOException {
         String username;
         String password;
         String result = "";
@@ -190,7 +152,7 @@ public class Client {
         return false;
     }
 
-    private static boolean register(DataInputStream in, DataOutputStream out) throws IOException {
+    public boolean register(DataInputStream in, DataOutputStream out) throws IOException {
         String username;
         String password;
         String result = "";
@@ -215,7 +177,7 @@ public class Client {
         return result.equals("REGISTER_SUCCESS");
     }
     
-    private static byte[] createTask(String taskFile) {
+    public byte[] createTask(String taskFile) {
         File file = new File("TestTaskFiles/Tasks/" + taskFile);
         byte[] task = new byte[(int) file.length()];
         try (FileInputStream fis = new FileInputStream(file)) {
@@ -227,7 +189,7 @@ public class Client {
         return task;
     }
 
-    private static void sendTaskToServer(byte[] task, DataOutputStream out) throws IOException {
+    public void sendTaskToServer(byte[] task, DataOutputStream out) throws IOException {
         outputLock.lock();
         try {
             out.writeUTF("EXECUTE_TASK");
@@ -241,7 +203,7 @@ public class Client {
         }
     }
 
-    private static byte[][] readResultFromServer(DataInputStream in) throws IOException {
+    public byte[][] readResultFromServer(DataInputStream in) throws IOException {
         inputLock.lock();
         try {
             int length = in.readInt();
@@ -260,7 +222,7 @@ public class Client {
         }
     }
 
-    private static void processResult(String taskFile, int taskNR, byte[] result) throws IOException {
+    public void processResult(String taskFile, int taskNR, byte[] result) throws IOException {
         File directory = new File("TestTaskFiles/Results/" + name);
         if (!directory.exists()) directory.mkdir();
         File file = new File("TestTaskFiles/Results/" + name + "/" + taskNR + "-" + taskFile + ".zip");
@@ -272,7 +234,7 @@ public class Client {
         System.err.println("Task result saved to " + file.getAbsolutePath());
     }
 
-    private static void queryServiceStatus(DataInputStream in, DataOutputStream out) throws IOException {
+    public void queryServiceStatus(DataInputStream in, DataOutputStream out) throws IOException {
         outputLock.lock();
         try {
             out.writeUTF("QUERY_STATUS");
@@ -289,7 +251,7 @@ public class Client {
         }
     }
 
-    private static void logout(DataOutputStream out) throws IOException {
+    public void logout(DataOutputStream out) throws IOException {
         outputLock.lock();
         try {
             out.writeUTF("LOGOUT");
