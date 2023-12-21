@@ -1,12 +1,19 @@
 import java.util.LinkedList;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class SimpleThreadExecutor {
     private final WorkerThread[] threads;
     private final LinkedList<Runnable> taskQueue;
+    private final Lock queueLock;
+    private final Condition queueNotEmpty;
 
     public SimpleThreadExecutor(int poolSize) {
         this.threads = new WorkerThread[poolSize];
         this.taskQueue = new LinkedList<>();
+        this.queueLock = new ReentrantLock();
+        this.queueNotEmpty = queueLock.newCondition();
 
         for (int i = 0; i < poolSize; i++) {
             threads[i] = new WorkerThread();
@@ -15,9 +22,12 @@ public class SimpleThreadExecutor {
     }
 
     public void submitTask(Runnable task) {
-        synchronized (taskQueue) {
+        queueLock.lock();
+        try {
             taskQueue.addLast(task);
-            taskQueue.notify();
+            queueNotEmpty.signal(); // Signal that the queue is not empty
+        } finally {
+            queueLock.unlock();
         }
     }
 
@@ -27,10 +37,11 @@ public class SimpleThreadExecutor {
             while (true) {
                 Runnable task;
 
-                synchronized (taskQueue) {
+                queueLock.lock();
+                try {
                     while (taskQueue.isEmpty()) {
                         try {
-                            taskQueue.wait();
+                            queueNotEmpty.await(); // Wait until the queue is not empty
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             return;
@@ -38,6 +49,8 @@ public class SimpleThreadExecutor {
                     }
 
                     task = taskQueue.removeFirst();
+                } finally {
+                    queueLock.unlock();
                 }
 
                 try {
