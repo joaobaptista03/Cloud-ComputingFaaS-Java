@@ -52,10 +52,9 @@ public class CentralServer {
 
     private class ClientHandler implements Runnable {
         private Socket clientSocket;
-        private String clientName;
+        private String clientName = null;
         private Lock inputLock = new ReentrantLock();
         private Lock outputLock = new ReentrantLock();
-        private int nrTasks = 0;
 
         public ClientHandler(Socket socket) {
             this.clientSocket = socket;
@@ -67,24 +66,28 @@ public class CentralServer {
                 DataInputStream in = new DataInputStream(clientSocket.getInputStream());
                 DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream())
             ) {
-                String authType = in.readUTF();
-                if ("REGISTER".equals(authType)) {
-                    while (!handleRegister(in, out));
-                }
-                while (!handleLogin(in, out));
-
-                while (true) {
+                boolean exit = false;
+                while (!exit) {
                     String requestType = in.readUTF();
                     switch (requestType) {
+                        case "REGISTER":
+                            handleRegister(in, out);
+                            break;
+                        case "LOGIN":
+                            handleLogin(in, out);
+                            break;
                         case "EXECUTE_TASK":
-                            handleExecuteTask(in, out);
+                            if (validateUser(in, out)) handleExecuteTask(in, out);
                             break;
                         case "QUERY_STATUS":
-                            handleQueryStatus(out);
+                            if (validateUser(in, out)) handleQueryStatus(out);
                             break;
                         case "LOGOUT":
-                            loggedInUsers.remove(clientName);
-                            System.out.println("User " + clientName + " logged out.");
+                            if (validateUser(in, out)) {
+                                loggedInUsers.remove(clientName);
+                                System.out.println("User " + clientName + " logged out.");
+                                exit = true;
+                            }
                             break;
                         default:
                             System.out.println("Invalid request type: " + requestType);
@@ -131,12 +134,34 @@ public class CentralServer {
             return false;
         }
 
-        public User authenticateUser(String username, String password) {
+        private User authenticateUser(String username, String password) {
             User user = userDatabase.get(username);
             if (user != null && user.getPassword().equals(password)) {
                 return user;
             }
             return null;
+        }
+
+        private boolean validateUser(DataInputStream in, DataOutputStream out) throws IOException {
+            if (clientName == null) {
+                outputLock.lock();
+                try {
+                    out.writeUTF("INVALID");
+                    out.flush();
+                    return false;
+                } finally {
+                    outputLock.unlock();
+                }
+            }
+
+            outputLock.lock();
+            try {
+                out.writeUTF("VALID");
+                out.flush();
+                return true;
+            } finally {
+                outputLock.unlock();
+            }
         }
 
         private byte[] readTaskFromClient(DataInputStream in) throws IOException {
@@ -154,7 +179,6 @@ public class CentralServer {
 
         private void handleExecuteTask(DataInputStream in, DataOutputStream out) throws IOException {
             byte[] task = readTaskFromClient(in);
-            int taskNR = ++this.nrTasks;
 
             outputLock.lock();
             try {
@@ -166,7 +190,7 @@ public class CentralServer {
                     out.flush();
 
                     byte[] result = executeTask(task);
-                    sendResultToClient(taskNR, result, out);
+                    sendResultToClient(result, out);
                     availableMemory += task.length;
                     pendingTasks--;
                 }
@@ -190,9 +214,8 @@ public class CentralServer {
             return null;
         }
 
-        private void sendResultToClient(int taskNR, byte[] result, DataOutputStream out) throws IOException {
+        private void sendResultToClient(byte[] result, DataOutputStream out) throws IOException {
             out.writeInt(result.length);
-            out.writeInt(taskNR);
             out.write(result);
             out.flush();
         }
