@@ -192,6 +192,7 @@ public class Client implements ClientInterface {
         try {
             out.writeUTF("LOGOUT");
             out.flush();
+            socket.close();
             
         } finally {
             outputLock.unlock();

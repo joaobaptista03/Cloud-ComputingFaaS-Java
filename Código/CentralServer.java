@@ -85,6 +85,7 @@ public class CentralServer {
                         case "LOGOUT":
                             if (validateUser(in, out)) {
                                 loggedInUsers.remove(clientName);
+                                clientSocket.close();
                                 System.out.println("User " + clientName + " logged out.");
                                 exit = true;
                             }
