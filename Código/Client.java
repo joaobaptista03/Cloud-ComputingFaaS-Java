@@ -223,7 +223,7 @@ public class Client implements ClientInterface {
     private void processResult(String taskFile, byte[] result) throws IOException {
         File directory = new File("TestTaskFiles/Results/" + name);
         if (!directory.exists()) directory.mkdir();
-        File file = new File("TestTaskFiles/Results/" + name + "/" + "-" + taskFile + ".zip");
+        File file = new File("TestTaskFiles/Results/" + name + "/" + taskFile + ".zip");
         
         try (FileOutputStream fos = new FileOutputStream(file)) {
             fos.write(result);
