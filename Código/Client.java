@@ -6,11 +6,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Client {
     private static final String SERVER_ADDRESS = "localhost";
@@ -150,18 +150,14 @@ public class Client {
     }
 
     private static boolean hasAccount() {
-        String responseString = "a";
-
-        while(!responseString.equals("s") && !responseString.equals("n")) {
+        String responseString;
+    
+        do {
             System.out.println("Digite \"s\" se já tiver conta (fazer Login) ou \"n\" se não tiver (Fazer registo)");
-
             responseString = scanner.nextLine();
-            
-            if (responseString.equalsIgnoreCase("s")) return true;
-            else if (responseString.equalsIgnoreCase("n")) return false;
-        }
-
-        return false;
+        } while (!responseString.equalsIgnoreCase("s") && !responseString.equalsIgnoreCase("n"));
+    
+        return responseString.equalsIgnoreCase("s");
     }
 
     private static boolean authenticate(DataInputStream in, DataOutputStream out) throws IOException {
