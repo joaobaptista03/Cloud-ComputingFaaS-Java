@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
@@ -14,12 +16,14 @@ public class Client implements ClientInterface {
     private Lock outputLock = new ReentrantLock();
     public List<String> taskFiles = getFilesInDirectory("TestTaskFiles/Tasks/");
     private String name;
+    private Socket socket;
     private DataInputStream in;
     private DataOutputStream out;
-
-    public Client(DataInputStream in, DataOutputStream out) {
-        this.in = in;
-        this.out = out;
+    
+    public Client() throws UnknownHostException, IOException {
+        this.socket = new Socket("localhost", 8080);
+        this.in = new DataInputStream(socket.getInputStream());
+        this.out = new DataOutputStream(socket.getOutputStream());
     }
 
     private List<String> getFilesInDirectory(String directoryPath) {
