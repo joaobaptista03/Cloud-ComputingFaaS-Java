@@ -55,6 +55,7 @@ public class ClientAPI {
                 case 3:
                     c.logout();
                     exit = true;
+                    System.out.println("Exiting the program. Thank you!");
                     break;
                 default:
                     System.out.println("Invalid option. Please try again.");
