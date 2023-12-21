@@ -41,6 +41,15 @@ public class CentralServer {
         }
     }
 
+    public static void main(String[] args) {
+        try {
+            CentralServer server = new CentralServer(8080);
+            server.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private class ClientHandler implements Runnable {
         private Socket clientSocket;
         private String clientName;
@@ -197,15 +206,6 @@ public class CentralServer {
             } finally {
                 outputLock.unlock();
             }
-        }
-    }
-
-    public static void main(String[] args) {
-        try {
-            CentralServer server = new CentralServer(8080);
-            server.start();
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 }

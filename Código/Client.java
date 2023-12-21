@@ -9,6 +9,8 @@ import java.nio.ByteBuffer;
 import java.util.Scanner;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Client {
     private static final String SERVER_ADDRESS = "localhost";
@@ -16,6 +18,7 @@ public class Client {
     private static final Lock inputLock = new ReentrantLock();
     private static final Lock outputLock = new ReentrantLock();
     private static final Scanner scanner = new Scanner(System.in);
+    private static final List<String> taskFiles = getFilesInDirectory("TestTaskFiles/Tasks/");
     private static String name;
 
     public static void main(String[] args) {
@@ -52,6 +55,20 @@ public class Client {
             e.printStackTrace();
         }
     }
+
+    private static List<String> getFilesInDirectory(String directoryPath) {
+        List<String> fileList = new ArrayList<>();
+        File directory = new File(directoryPath);
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile()) {
+                    fileList.add(file.getName());
+                }
+            }
+        }
+        return fileList;
+    }
     
     private static void printMenu() {
         System.out.println("1. Execute Task");
@@ -61,7 +78,17 @@ public class Client {
     }
 
     private static void executeTask(DataInputStream in, DataOutputStream out) throws IOException {
-        byte[] task = createTask();
+        String taskFile = "";
+
+        while (!taskFiles.contains(taskFile)) {
+            System.err.println("Type the task file you want to execute:");
+            for (String task : taskFiles) {
+                System.err.println("- " + task + ";");
+            }
+            taskFile = scanner.nextLine();
+        }
+
+        byte[] task = createTask(taskFile);
         sendTaskToServer(task, out);
 
         if (!readMemoryAvailability(in)) {
@@ -71,10 +98,9 @@ public class Client {
         
         byte[][] taskAndResult = readResultFromServer(in);
 
-        ByteBuffer buffer = ByteBuffer.wrap(taskAndResult[0]);
-        int intValue = buffer.getInt();
+        int intValue = ByteBuffer.wrap(taskAndResult[0]).getInt();
 
-        processResult(intValue, taskAndResult[1]);
+        processResult(taskFile, intValue, taskAndResult[1]);
     }
 
     private static boolean readMemoryAvailability(DataInputStream in) throws IOException {
@@ -193,8 +219,8 @@ public class Client {
         return result.equals("REGISTER_SUCCESS");
     }
     
-    private static byte[] createTask() {
-        File file = new File("taskFile");
+    private static byte[] createTask(String taskFile) {
+        File file = new File("TestTaskFiles/Tasks/" + taskFile);
         byte[] task = new byte[(int) file.length()];
         try (FileInputStream fis = new FileInputStream(file)) {
             fis.read(task);
@@ -238,9 +264,11 @@ public class Client {
         }
     }
 
-    private static void processResult(int taskNR, byte[] result) throws IOException {
-        String filename = "result" + "-" + taskNR + "-" + name + ".zip";
-        File file = new File(filename);
+    private static void processResult(String taskFile, int taskNR, byte[] result) throws IOException {
+        File directory = new File("TestTaskFiles/Results/" + name);
+        if (!directory.exists()) directory.mkdir();
+        File file = new File("TestTaskFiles/Results/" + name + "/" + taskNR + "-" + taskFile + ".zip");
+        
         try (FileOutputStream fos = new FileOutputStream(file)) {
             fos.write(result);
         }
