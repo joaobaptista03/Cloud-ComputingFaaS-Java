@@ -1,4 +1,6 @@
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
@@ -8,7 +10,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import sd23.*;
+import sd23.JobFunction;
+import sd23.JobFunctionException;
 
 public class CentralServer {
     private ServerSocket serverSocket;
@@ -43,6 +46,7 @@ public class CentralServer {
         private String clientName;
         private Lock inputLock = new ReentrantLock();
         private Lock outputLock = new ReentrantLock();
+        private int nrTasks = 0;
 
         public ClientHandler(Socket socket) {
             this.clientSocket = socket;
@@ -141,6 +145,7 @@ public class CentralServer {
 
         private void handleExecuteTask(DataInputStream in, DataOutputStream out) throws IOException {
             byte[] task = readTaskFromClient(in);
+            int taskNR = ++this.nrTasks;
 
             outputLock.lock();
             try {
@@ -152,7 +157,7 @@ public class CentralServer {
                     out.flush();
 
                     byte[] result = executeTask(task);
-                    sendResultToClient(result, out);
+                    sendResultToClient(taskNR, result, out);
                     availableMemory += task.length;
                     pendingTasks--;
                 }
@@ -176,8 +181,9 @@ public class CentralServer {
             return null;
         }
 
-        private void sendResultToClient(byte[] result, DataOutputStream out) throws IOException {
+        private void sendResultToClient(int taskNR, byte[] result, DataOutputStream out) throws IOException {
             out.writeInt(result.length);
+            out.writeInt(taskNR);
             out.write(result);
             out.flush();
         }

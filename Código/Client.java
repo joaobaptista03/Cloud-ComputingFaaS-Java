@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.util.Scanner;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -10,6 +11,7 @@ public class Client {
     private static final Lock inputLock = new ReentrantLock();
     private static final Lock outputLock = new ReentrantLock();
     private static final Scanner scanner = new Scanner(System.in);
+    private static String name;
 
     public static void main(String[] args) {
         try (Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
@@ -62,8 +64,12 @@ public class Client {
             return;
         }
         
-        byte[] result = readResultFromServer(in);
-        processResult(result);
+        byte[][] taskAndResult = readResultFromServer(in);
+
+        ByteBuffer buffer = ByteBuffer.wrap(taskAndResult[0]);
+        int intValue = buffer.getInt();
+
+        processResult(intValue, taskAndResult[1]);
     }
 
     private static boolean readMemoryAvailability(DataInputStream in) throws IOException {
@@ -149,7 +155,12 @@ public class Client {
             inputLock.unlock();
         }
 
-        return result.equals("LOGIN_SUCCESS");
+        if (result.equals("LOGIN_SUCCESS")) {
+            name = username;
+            return true;
+        }
+        
+        return false;
     }
 
     private static boolean register(DataInputStream in, DataOutputStream out) throws IOException {
@@ -178,10 +189,13 @@ public class Client {
     }
     
     private static byte[] createTask() {
-        System.out.println("Enter the number of bytes: ");
-        int length = scanner.nextInt();
-
-        byte[] task = new byte[length];
+        File file = new File("taskFile");
+        byte[] task = new byte[(int) file.length()];
+        try (FileInputStream fis = new FileInputStream(file)) {
+            fis.read(task);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         return task;
     }
@@ -200,21 +214,31 @@ public class Client {
         }
     }
 
-    private static byte[] readResultFromServer(DataInputStream in) throws IOException {
+    private static byte[][] readResultFromServer(DataInputStream in) throws IOException {
         inputLock.lock();
         try {
             int length = in.readInt();
+            int taskNR = in.readInt();
+
+            ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+            buffer.putInt(taskNR);
+            byte[] intByteArray = buffer.array();
+
             byte[] result = new byte[length];
             in.readFully(result);
 
-            return result;
+            return new byte[][] { intByteArray, result };
         } finally {
             inputLock.unlock();
         }
     }
 
-    private static void processResult(byte[] result) throws IOException {
-        System.out.println(result);
+    private static void processResult(int taskNR, byte[] result) throws IOException {
+        String filename = "result" + "-" + taskNR + "-" + name + ".zip";
+        File file = new File(filename);
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(result);
+        }
     }
 
     private static void queryServiceStatus(DataInputStream in, DataOutputStream out) throws IOException {
