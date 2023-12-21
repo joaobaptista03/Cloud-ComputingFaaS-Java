@@ -240,6 +240,7 @@ public class Client implements ClientInterface {
         */
     public ServiceStatus queryServiceStatus() throws IOException {
         outputLock.lock();
+        inputLock.lock();
         try {
             out.writeUTF("QUERY_STATUS");
             out.flush();
@@ -254,6 +255,7 @@ public class Client implements ClientInterface {
     
             return new ServiceStatus(availableMemory, pendingTasks);
         } finally {
+            inputLock.unlock();
             outputLock.unlock();
         }
     }

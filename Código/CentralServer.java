@@ -125,19 +125,27 @@ public class CentralServer {
          * @throws IOException If an I/O error occurs.
          */
         private boolean handleRegister(DataInputStream in, DataOutputStream out) throws IOException {
-            String username = in.readUTF();
-            String password = in.readUTF();
+            inputLock.lock();
+            outputLock.lock();
+            try {
+                String username = in.readUTF();
+                String password = in.readUTF();
 
-            if (!userDatabase.containsKey(username)) {
-                userDatabase.put(username, new User(username, password));
-                loggedInUsers.put(username, out);
-                out.writeUTF("REGISTER_SUCCESS");
-                System.out.println("User registered: " + username);
-                return true;
-            } else {
-                out.writeUTF("REGISTER_FAILURE");
+                if (!userDatabase.containsKey(username)) {
+                    userDatabase.put(username, new User(username, password));
+                    loggedInUsers.put(username, out);
+                    out.writeUTF("REGISTER_SUCCESS");
+                    System.out.println("User registered: " + username);
+                    return true;
+                } else {
+                    out.writeUTF("REGISTER_FAILURE");
+                }
+                return false;
+
+            } finally {
+                inputLock.unlock();
+                outputLock.unlock();
             }
-            return false;
         }
 
         /**
@@ -149,22 +157,29 @@ public class CentralServer {
          * @throws IOException if an I/O error occurs.
          */
         private boolean handleLogin(DataInputStream in, DataOutputStream out) throws IOException {
-            String username = in.readUTF();
-            String password = in.readUTF();
+            outputLock.lock();
+            inputLock.lock();
+            try {
+                String username = in.readUTF();
+                String password = in.readUTF();
 
-            User authenticatedUser = this.authenticateUser(username, password);
-            if (authenticatedUser != null) {
-                loggedInUsers.put(username, out);
-                this.clientName = username;
-                out.writeUTF("LOGIN_SUCCESS");
-                System.out.println("User logged in: " + username);
-                return true;
-            } else {
-                out.writeUTF("LOGIN_FAILURE");
-                System.out.println("Server response: " + "LOGIN_FAILURE");
+                User authenticatedUser = this.authenticateUser(username, password);
+                if (authenticatedUser != null) {
+                    loggedInUsers.put(username, out);
+                    this.clientName = username;
+                    out.writeUTF("LOGIN_SUCCESS");
+                    System.out.println("User logged in: " + username);
+                    return true;
+                } else {
+                    out.writeUTF("LOGIN_FAILURE");
+                    System.out.println("Server response: " + "LOGIN_FAILURE");
+                }
+
+                return false;
+            } finally {
+                outputLock.unlock();
+                inputLock.unlock();
             }
-
-            return false;
         }
 
         /**
@@ -287,9 +302,14 @@ public class CentralServer {
          * @throws IOException if an I/O error occurs while sending the result.
          */
         private void sendResultToClient(byte[] result, DataOutputStream out) throws IOException {
-            out.writeInt(result.length);
-            out.write(result);
-            out.flush();
+            outputLock.lock();
+            try {
+                out.writeInt(result.length);
+                out.write(result);
+                out.flush();
+            } finally {
+                outputLock.unlock();
+            }
         }
 
         /**
