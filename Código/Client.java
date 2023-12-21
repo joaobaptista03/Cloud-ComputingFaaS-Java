@@ -272,6 +272,8 @@ public class Client {
         try (FileOutputStream fos = new FileOutputStream(file)) {
             fos.write(result);
         }
+
+        System.err.println("Task result saved to " + file.getAbsolutePath());
     }
 
     private static void queryServiceStatus(DataInputStream in, DataOutputStream out) throws IOException {
