@@ -68,7 +68,7 @@ public class Client implements ClientInterface {
         
         byte[] result = readResultFromServer();
 
-        processResult(taskFile, result);
+        if (result != null) processResult(taskFile, result);
     }
 
     /**
@@ -203,6 +203,11 @@ public class Client implements ClientInterface {
         inputLock.lock();
         try {
             int length = in.readInt();
+
+            if (length == 0) {
+                System.out.println("Task failed.");
+                return null;
+            }
 
             byte[] result = new byte[length];
             in.readFully(result);

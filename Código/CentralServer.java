@@ -64,11 +64,23 @@ public class CentralServer {
     private class ClientHandler implements Runnable {
         private Socket clientSocket;
         private String clientName = null;
+        private SimpleThreadExecutor clienThreadExecutor = new SimpleThreadExecutor(3);
+        private boolean exit = false;
         private Lock inputLock = new ReentrantLock();
         private Lock outputLock = new ReentrantLock();
 
+        private DataInputStream in = null;
+        private DataOutputStream out = null;
+
+
         public ClientHandler(Socket socket) {
             this.clientSocket = socket;
+            try {
+                in = new DataInputStream(clientSocket.getInputStream());
+                out = new DataOutputStream(clientSocket.getOutputStream());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         /**
@@ -76,41 +88,60 @@ public class CentralServer {
          */
         @Override
         public void run() {
-            try (
-                DataInputStream in = new DataInputStream(clientSocket.getInputStream());
-                DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream())
-            ) {
-                boolean exit = false;
+            try {
                 while (!exit) {
-                    String requestType = in.readUTF();
+                    String requestType = "FAIL";
+                    inputLock.lock();
+                    try {
+                        requestType = in.readUTF();
+                    } finally {
+                        inputLock.unlock();
+                    }
+                    FuncExecutor funcExecutor = new FuncExecutor(requestType);
+                    clienThreadExecutor.submitTask(funcExecutor);
+                    Thread.sleep(1);
+                }
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        class FuncExecutor implements Runnable {
+            private String requestType;
+
+            public FuncExecutor(String requestType) {
+                this.requestType = requestType;
+            }
+
+            @Override
+            public void run() {
+                try {
                     switch (requestType) {
                         case "REGISTER":
-                            handleRegister(in, out);
+                            handleRegister();
                             break;
                         case "LOGIN":
-                            handleLogin(in, out);
+                            handleLogin();
                             break;
                         case "EXECUTE_TASK":
-                            if (validateUser(in, out)) handleExecuteTask(in, out);
+                            if (validateUser()) handleExecuteTask();
                             break;
                         case "QUERY_STATUS":
-                            if (validateUser(in, out)) handleQueryStatus(out);
+                            if (validateUser()) handleQueryStatus();
                             break;
                         case "LOGOUT":
-                            if (validateUser(in, out)) {
+                            if (validateUser()) {
+                                exit = true;
                                 loggedInUsers.remove(clientName);
                                 clientSocket.close();
                                 System.out.println("User " + clientName + " logged out.");
-                                exit = true;
                             }
                             break;
-                        default:
-                            System.out.println("Invalid request type: " + requestType);
                     }
-                }
 
-            } catch (IOException e) {
-                e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -122,7 +153,7 @@ public class CentralServer {
          * @return True if the registration is successful, false otherwise.
          * @throws IOException If an I/O error occurs.
          */
-        private boolean handleRegister(DataInputStream in, DataOutputStream out) throws IOException {
+        private boolean handleRegister() throws IOException {
             inputLock.lock();
             outputLock.lock();
             try {
@@ -154,7 +185,7 @@ public class CentralServer {
          * @return true if the login is successful, false otherwise.
          * @throws IOException if an I/O error occurs.
          */
-        private boolean handleLogin(DataInputStream in, DataOutputStream out) throws IOException {
+        private boolean handleLogin() throws IOException {
             outputLock.lock();
             inputLock.lock();
             try {
@@ -200,7 +231,7 @@ public class CentralServer {
          * @return true if the user is valid, false otherwise.
          * @throws IOException if an I/O error occurs while reading or writing data.
          */
-        private boolean validateUser(DataInputStream in, DataOutputStream out) throws IOException {
+        private boolean validateUser() throws IOException {
             if (clientName == null) {
                 outputLock.lock();
                 try {
@@ -229,7 +260,7 @@ public class CentralServer {
          * @return the byte array representing the task
          * @throws IOException if an I/O error occurs
          */
-        private byte[] readTaskFromClient(DataInputStream in) throws IOException {
+        private byte[] readTaskFromClient() throws IOException {
             inputLock.lock();
             try {
                 int length = in.readInt();
@@ -249,8 +280,8 @@ public class CentralServer {
          * @param out The output stream to send the result to the client.
          * @throws IOException if an I/O error occurs.
          */
-        private void handleExecuteTask(DataInputStream in, DataOutputStream out) throws IOException {
-            byte[] task = readTaskFromClient(in);
+        private void handleExecuteTask() throws IOException {
+            byte[] task = readTaskFromClient();
 
             outputLock.lock();
             try {
@@ -260,15 +291,14 @@ public class CentralServer {
                 } else {
                     out.writeBoolean(true);
                     out.flush();
-
-                    byte[] result = executeTask(task);
-                    sendResultToClient(result, out);
-                    availableMemory += task.length;
-                    pendingTasks--;
                 }
             } finally {
                 outputLock.unlock();
             }
+            byte[] result = executeTask(task);
+            availableMemory += task.length;
+            pendingTasks--;
+            sendResultToClient(result);
         }
 
         /**
@@ -279,17 +309,15 @@ public class CentralServer {
          */
         private byte[] executeTask(byte[] task) {
             byte[] result;
-
+            pendingTasks++;
+            availableMemory -= task.length;
+                
             try {
-                pendingTasks++;
-                availableMemory -= task.length;
                 result = JobFunction.execute(task);
                 return result;
             } catch (JobFunctionException e) {
-                e.printStackTrace();
+                return null;
             }
-
-            return null;
         }
 
         /**
@@ -299,9 +327,14 @@ public class CentralServer {
          * @param out The DataOutputStream used to send the result.
          * @throws IOException if an I/O error occurs while sending the result.
          */
-        private void sendResultToClient(byte[] result, DataOutputStream out) throws IOException {
+        private void sendResultToClient(byte[] result) throws IOException {
             outputLock.lock();
             try {
+                if (result == null) {
+                    out.writeInt(0);
+                    out.flush();
+                    return;
+                }
                 out.writeInt(result.length);
                 out.write(result);
                 out.flush();
@@ -316,7 +349,7 @@ public class CentralServer {
          * @param out the DataOutputStream used to send the response
          * @throws IOException if an I/O error occurs while sending the response
          */
-        private void handleQueryStatus(DataOutputStream out) throws IOException {
+        private void handleQueryStatus() throws IOException {
             outputLock.lock();
             try {
                 out.writeInt(availableMemory);

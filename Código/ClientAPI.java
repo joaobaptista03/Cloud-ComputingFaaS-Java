@@ -3,9 +3,11 @@ import java.util.Scanner;
 
 public class ClientAPI {
     private static Scanner scanner = new Scanner(System.in);
+    private static boolean exit = false;
+    private static boolean proceed = true;
+    private static SimpleThreadExecutor executorService = new SimpleThreadExecutor(5);
     
-    public static void main(String[] args) throws IOException {
-
+    public static void main(String[] args) throws IOException, InterruptedException {
         Client c = new Client();
 
         String responseString;
@@ -20,49 +22,71 @@ public class ClientAPI {
 
         login(c);
 
-
-        boolean exit = false;
         while (!exit) {
-            System.out.println("Choose an option:");
+            while (!proceed) {
+                Thread.sleep(1);
+            }
+            System.out.println("Choose an option: ");
             System.out.println("1. Execute Task");
             System.out.println("2. Query Service Status");
             System.out.println("3. Exit");
-            System.out.print("Choose an option: ");
 
             int option = scanner.nextInt();
             scanner.nextLine();
-
-            switch (option) {
-                case 1:
-                    String taskFile = "";
-
-                    while (!c.taskFiles.contains(taskFile)) {
-                        System.err.println("Type the task file you want to execute:");
-                        for (String task : c.taskFiles) {
-                            System.err.println("- " + task + ";");
-                        }
-                        taskFile = scanner.nextLine();
-                    }
-                    c.executeTask(taskFile);
-                    break;
-                case 2:
-                    ServiceStatus ss = c.queryServiceStatus();
-
-                    System.out.println("Service status:");
-                    System.out.println("Available memory: " + ss.availableMemory);
-                    System.out.println("Pending tasks: " + ss.pendingTasks);
-                    break;
-                case 3:
-                    c.logout();
-                    exit = true;
-                    System.out.println("Exiting the program. Thank you!");
-                    break;
-                default:
-                    System.out.println("Invalid option. Please try again.");
-            }
+            executorService.submitTask(new OptionExecutor(option, c));
+            Thread.sleep(1);
         }
 
         scanner.close();
+    }
+
+    public static class OptionExecutor implements Runnable {
+        private int option;
+        private Client c;
+        private Scanner threadScanner = new Scanner(System.in);
+
+        public OptionExecutor(int option, Client c) {
+            this.option = option;
+            this.c = c;
+        }
+
+        public void run() {
+            try {
+                switch (option) {
+                    case 1:
+                        String taskFile = "";
+
+                        proceed = false;
+                        while (!c.taskFiles.contains(taskFile)) {
+                            System.err.println("Type the task file you want to execute:");
+                            for (String task : c.taskFiles) {
+                                System.err.println("- " + task + ";");
+                            }
+                            taskFile = threadScanner.nextLine();
+                        }
+                        proceed = true;
+                        c.executeTask(taskFile);
+                        break;
+                    case 2:
+                        ServiceStatus ss = c.queryServiceStatus();
+
+                        System.out.println("Service status:");
+                        System.out.println("Available memory: " + ss.availableMemory);
+                        System.out.println("Pending tasks: " + ss.pendingTasks);
+                        break;
+                    case 3:
+                        c.logout();
+                        exit = true;
+                        System.out.println("Exiting the program. Thank you!");
+                        System.exit(0);
+                        break;
+                    default:
+                        System.out.println("Invalid option. Please try again.");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private static void login(Client c) throws IOException {
