@@ -64,7 +64,7 @@ public class CentralServer {
     private class ClientHandler implements Runnable {
         private Socket clientSocket;
         private String clientName = null;
-        private ThreadExecutor clienThreadExecutor = new ThreadExecutor(3);
+        private ThreadExecutor clienThreadExecutor = new ThreadExecutor(5);
         private boolean exit = false;
         private Lock inputLock = new ReentrantLock();
         private Lock outputLock = new ReentrantLock();
