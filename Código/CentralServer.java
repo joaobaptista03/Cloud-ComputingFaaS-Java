@@ -316,6 +316,7 @@ public class CentralServer {
                 result = JobFunction.execute(task);
                 return result;
             } catch (JobFunctionException e) {
+                System.err.println("Job failed! Code = " + e.getCode() + " message=" + e.getMessage());
                 return null;
             }
         }
