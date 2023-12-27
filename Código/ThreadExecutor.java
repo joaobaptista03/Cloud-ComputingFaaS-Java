@@ -25,7 +25,7 @@ public class ThreadExecutor {
         queueLock.lock();
         try {
             taskQueue.addLast(task);
-            queueNotEmpty.signal(); // Signal that the queue is not empty
+            queueNotEmpty.signal();
         } finally {
             queueLock.unlock();
         }
@@ -41,7 +41,7 @@ public class ThreadExecutor {
                 try {
                     while (taskQueue.isEmpty()) {
                         try {
-                            queueNotEmpty.await(); // Wait until the queue is not empty
+                            queueNotEmpty.await();
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             return;
