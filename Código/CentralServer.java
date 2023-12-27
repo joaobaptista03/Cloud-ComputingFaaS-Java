@@ -17,7 +17,7 @@ import sd23.JobFunctionException;
  */
 public class CentralServer {
     private ServerSocket serverSocket;
-    private SimpleThreadExecutor executorService;
+    private ThreadExecutor executorService;
 
     private Map<String, User> userDatabase = new HashMap<>();
     private Map<String, DataOutputStream> loggedInUsers = new HashMap<>();
@@ -27,7 +27,7 @@ public class CentralServer {
 
     public CentralServer(int port) throws IOException {
         serverSocket = new ServerSocket(port);
-        executorService = new SimpleThreadExecutor(10);
+        executorService = new ThreadExecutor(10);
     }
 
     /**
@@ -64,7 +64,7 @@ public class CentralServer {
     private class ClientHandler implements Runnable {
         private Socket clientSocket;
         private String clientName = null;
-        private SimpleThreadExecutor clienThreadExecutor = new SimpleThreadExecutor(3);
+        private ThreadExecutor clienThreadExecutor = new ThreadExecutor(3);
         private boolean exit = false;
         private Lock inputLock = new ReentrantLock();
         private Lock outputLock = new ReentrantLock();

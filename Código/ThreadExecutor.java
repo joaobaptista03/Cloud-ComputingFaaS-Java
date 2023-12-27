@@ -3,13 +3,13 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class SimpleThreadExecutor {
+public class ThreadExecutor {
     private final WorkerThread[] threads;
     private final LinkedList<Runnable> taskQueue;
     private final Lock queueLock;
     private final Condition queueNotEmpty;
 
-    public SimpleThreadExecutor(int poolSize) {
+    public ThreadExecutor(int poolSize) {
         this.threads = new WorkerThread[poolSize];
         this.taskQueue = new LinkedList<>();
         this.queueLock = new ReentrantLock();

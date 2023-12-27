@@ -5,7 +5,7 @@ public class ClientAPI {
     private static Scanner scanner = new Scanner(System.in);
     private static boolean exit = false;
     private static boolean proceed = true;
-    private static SimpleThreadExecutor executorService = new SimpleThreadExecutor(5);
+    private static ThreadExecutor executorService = new ThreadExecutor(5);
     
     public static void main(String[] args) throws IOException, InterruptedException {
         Client c = new Client();
