@@ -291,14 +291,14 @@ public class CentralServer {
                 } else {
                     out.writeBoolean(true);
                     out.flush();
+                    byte[] result = executeTask(task);
+                    availableMemory += task.length;
+                    pendingTasks--;
+                    sendResultToClient(result);
                 }
             } finally {
                 outputLock.unlock();
             }
-            byte[] result = executeTask(task);
-            availableMemory += task.length;
-            pendingTasks--;
-            sendResultToClient(result);
         }
 
         /**
