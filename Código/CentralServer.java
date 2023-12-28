@@ -201,7 +201,6 @@ public class CentralServer {
                     return true;
                 } else {
                     out.writeUTF("LOGIN_FAILURE");
-                    System.out.println("Server response: " + "LOGIN_FAILURE");
                 }
 
                 return false;
