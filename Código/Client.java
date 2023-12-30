@@ -15,7 +15,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * The Client class represents a client that interacts with a server.
  * It implements the ClientInterface interface.
  */
-public class Client implements ClientInterface {
+public class Client implements ClientAPI {
     private Lock inputLock = new ReentrantLock();
     private Lock outputLock = new ReentrantLock();
     public List<String> taskFiles = getFilesInDirectory("TestTaskFiles/Tasks/");
