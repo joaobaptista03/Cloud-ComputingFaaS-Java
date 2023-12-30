@@ -26,6 +26,7 @@ public class ClientUI {
             while (!proceed) {
                 Thread.sleep(1);
             }
+            Thread.sleep(1000);
             System.out.println("Choose an option: ");
             System.out.println("1. Execute Task");
             System.out.println("2. Query Service Status");
